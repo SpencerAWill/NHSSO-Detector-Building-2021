@@ -43,10 +43,6 @@ void setup() {
 }
 
 void loop() {
-  //Read Pin
-  //Create thermistor (readPin, beta, T0, R0)
-  Thermistor probeThermistor(A0, 3435, 298.15, 9999.00);
-
   float adcValue = GetAverageADC(probeThermistor, numSamples, (int)(samplingTime / numSamples));
   float celcius = GetTemp(probeThermistor, adcValue) + tempCorrection;
 

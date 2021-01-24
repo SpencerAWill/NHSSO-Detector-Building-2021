@@ -11,7 +11,7 @@ void Logger::Log(String message)
 
 void Logger::Log(String message, Verbosity verbosity)
 {
-  if (verbosity > VerbosityLevel) {
+  if (verbosity > LogLevel) {
     Serial.print(message);
   }
 }
