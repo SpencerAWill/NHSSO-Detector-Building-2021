@@ -4,20 +4,8 @@
 #include "Thermistor.h"
 #include "Timer.h"
 #include "Button.h"
-
-
-
-class SerialReader {
-  public:
-    String GetCommand() {
-      if (Serial.available()) {
-        String command = Serial.readStringUntil('\n');
-        return command;
-      }
-      else return "";
-    }
-    SerialReader() {}
-};
+#include "SerialReader.h"
+#include "Logger.h"
 
 /*
    Change the VALUES for any of the following
