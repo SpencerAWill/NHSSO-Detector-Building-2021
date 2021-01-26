@@ -4,13 +4,11 @@
 
 Thermistor *_thermistor;
 unsigned int SampleAmount;
-unsigned int SamplingTimeMS;
 int TemperatureOffset;
 
 Thermometer::Thermometer(Thermistor *thermistor)
 {
   SampleAmount = 10;
-  SamplingTimeMS = 1000;
   _thermistor = thermistor;
   TemperatureOffset = 0;
 }
@@ -20,11 +18,9 @@ float Thermometer::GetAverageADC()
   int arraySize = SampleAmount;
   float adcs[arraySize];
   float cumulativeADC = 0;
-  int delayMS = (int)(SamplingTimeMS / SampleAmount);
   for (int i = 0; i < arraySize; i++)
   {
     cumulativeADC += (float)_thermistor->GetADC();
-    delay(delayMS);
   }
 
   return cumulativeADC / arraySize;

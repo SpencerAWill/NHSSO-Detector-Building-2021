@@ -22,13 +22,13 @@ char serial_command_buffer_[32];
 //working buffer = serial_command_buffer_
 //command delimeter: Cr & Lf
 //argument delimeter: SPACE
-const char* term = "\r\n";
+const char* term = "\n";
 const char* delimiter = " ";
 SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), term, delimiter);
 
 
 //Timing
-Timer<4, millis> timer;
+Timer<2, millis> timer;
 uintptr_t constantUpdate;
 uintptr_t timerExecuted;
 
@@ -47,9 +47,7 @@ TemperatureLED redLED(4, 35.1, 100);
 // Thermometer
 Thermometer thermometer(&probeThermistor);
 
-//Other
-LED resetLED(6);
-const unsigned int defaultTimer = 10;
+const unsigned int defaultTimer = 90;
 
 /*
    Don't bother anything after this.
@@ -62,30 +60,39 @@ const unsigned int defaultTimer = 10;
 
 void cmd_unrecognized_handler(SerialCommands* sender, const char* cmd)
 {
-  auto serial = sender->GetSerial();
-  
-  serial->print("Command unrecognized: ");
-  serial->print(cmd);
+  sender->GetSerial()->print("Command unrecognized: ");
+  sender->GetSerial()->println(cmd);
 }
 
 void cmd_timerCommands_handler(SerialCommands* sender)
 {
-  auto serial = sender->GetSerial();
-  char* arg1 = sender->Next();
-
-  if (arg1 == NULL)
+  char* arg = sender->Next();
+  
+  if (arg == NULL)
   {
-    serial->println("Unrecognized argument: " + String(arg1));
+    sender->GetSerial()->println("invalid parameter: [" + String(arg) + "]");
     return;
   }
+  
+  String argString = String(arg);
 
-  if (arg1 == "start")
+  if (argString == "start")
   {
-    startTimer(sender);
+    if (!timerExecuted)
+    {
+      startTimer(sender);
+    }
+    else
+    {
+      Log.warning("Cannot start timer because one is already running" CR);
+    }
   }
-  else if (arg1 == "cancel")
+  else if (argString == "stop")
   {
-      cancelTimer(sender);
+    if (timerExecuted)
+    {
+      stopTimer();
+    }
   }
 }
 SerialCommand cmd_timerCommands("timer", cmd_timerCommands_handler);
@@ -108,22 +115,32 @@ void loop() {
 
 void startTimer(SerialCommands* sender)
 {
-  int t = defaultTimer;
-  int milliseconds = t * 1000;
-  sender->GetSerial()->println("Timer started for " + String(t) + "ms");
-  //timerExecuted = timer.in(t * 1000, timer_logTimedTemperature);
+  char* arg2 = sender->Next();
+  unsigned int duration;
+  if (arg2 == NULL)
+  {
+    duration = defaultTimer;
+  }
+  else
+  {
+    duration = atoi(arg2);
+  }
+  int milliseconds = duration * 1000;
+  Log.notice("Timer started for %dms" CR, milliseconds);
+  timerExecuted = timer.in(milliseconds, timer_finished);
 }
 
-void cancelTimer(SerialCommands* sender)
+void stopTimer()
 {
-  sender->GetSerial()->println("Timer canceled");
-  //timer.cancel(timerExecuted);
+  Log.notice("Timer stopped" CR);
+  timer.cancel(timerExecuted);
 }
 
 bool timer_finished(void *)
 {
   float temperature = thermometer.ReadTemperature();
-  Serial.println(temperature);
+  Log.notice("Mark: %D Celsius" CR, temperature);
+  stopTimer();
   return false; //no repeat
 }
 
@@ -133,6 +150,6 @@ bool timer_logRegularTemperature(void *)
   blueLED.Update(temperature);
   redLED.Update(temperature);
   greenLED.Update(temperature);
-  Serial.println(temperature);
+  Log.notice("%D Celsius" CR, temperature);
   return true; //repeat
 }

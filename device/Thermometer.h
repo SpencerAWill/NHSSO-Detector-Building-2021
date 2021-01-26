@@ -14,7 +14,6 @@ class Thermometer
     float KelvinToCelsius(float kelvin);
   public:
     unsigned int SampleAmount;
-    unsigned int SamplingTimeMS;
     int TemperatureOffset;
     Thermometer(Thermistor *thermistor);
     float ReadTemperature();
