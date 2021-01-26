@@ -6,10 +6,11 @@
 
 class TemperatureLED : public LED {
   public:
-    int Lower;
-    int Upper;
-    TemperatureLED(int pin, int lower, int upper);
+    float Lower;
+    float Upper;
+    TemperatureLED(int pin, float lower, float upper);
     bool WithinRange(float value);
+    void Update(float temperature);
 };
 
 #endif

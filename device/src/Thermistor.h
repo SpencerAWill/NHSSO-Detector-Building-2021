@@ -1,8 +1,6 @@
 #ifndef Thermistor_h
 #define Thermistor_h
 
-#include "Arduino.h"
-
 class Thermistor {
 	public:
 		int Beta;

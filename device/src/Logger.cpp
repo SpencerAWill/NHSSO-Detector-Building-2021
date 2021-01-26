@@ -12,7 +12,7 @@ void Logger::Log(String message)
 void Logger::Log(String message, Verbosity verbosity)
 {
   if (verbosity > LogLevel) {
-    Serial.print(message);
+    Serial.println(message);
   }
 }
 

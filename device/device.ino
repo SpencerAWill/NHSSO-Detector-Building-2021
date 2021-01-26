@@ -1,11 +1,36 @@
+#include <SerialCommands.h>
+#include <arduino-timer.h>
+
+
+
 #include "Arduino.h"
-#include "LED.h"
-#include "TemperatureLED.h"
-#include "Thermistor.h"
-#include "Timer.h"
-#include "Button.h"
-#include "SerialReader.h"
-#include "Logger.h"
+#include "src/LED.h"
+#include "src/TemperatureLED.h"
+#include "src/Thermistor.h"
+#include "src/Logger.h"
+#include "src/Thermometer.h"
+
+/*
+ * Serial Command Setup
+ */
+
+//Create a 32 bytes static buffer to be used exclusive by SerialCommands object.
+//The size should accomodate command token, arguments, termination sequence and string delimeter \0 char.
+char serial_command_buffer_[32];
+
+//Creates SerialCommands object attached to Serial
+//working buffer = serial_command_buffer_
+//command delimeter: Cr & Lf
+//argument delimeter: SPACE
+const char* term = "\r\n";
+const char* delimiter = " ";
+SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), term, delimiter);
+
+
+//Timing
+Timer<4, micros> timer;
+uintptr_t constantUpdate;
+uintptr_t timerExecuted;
 
 /*
    Change the VALUES for any of the following
@@ -19,208 +44,107 @@ TemperatureLED blueLED(2, 0, 20);
 TemperatureLED greenLED(3, 20.1, 35);
 TemperatureLED redLED(4, 35.1, 100);
 
-// Temperature Sampling
-int numSamples = 10;
-int samplingTime = 1000;
+// Thermometer
+Logger logger(Verbosity::Normal);
+Thermometer thermometer(&probeThermistor);
 
-// Other
-float tempCorrection = 0;
-
-// Other other
-Timer timer(90);
-SerialReader serialReader;
-Button startTimerButton(5);
-Button resetTimerButton(7);
+//Other
 LED resetLED(6);
-bool AlreadyTriggered = false;
+const unsigned int defaultTimer = 90;
 
 /*
    Don't bother anything after this.
 */
 
+
+/*
+ * Commands
+ */
+
+void cmd_unrecognized_handler(SerialCommands* sender, const char* cmd)
+{
+  auto serial = sender->GetSerial();
+  
+  serial->print("Command unrecognized: ");
+  serial->print(cmd);
+}
+
+void cmd_timerCommands_handler(SerialCommands* sender)
+{
+  auto serial = sender->GetSerial();
+  char* arg1 = sender->Next();
+
+  if (arg1 == NULL)
+  {
+    serial->println("Unrecognized argument: " + String(arg1));
+    return;
+  }
+
+  if (arg1 == "start")
+  {
+    startTimer(sender);
+  }
+  else if (arg1 == "cancel")
+  {
+      cancelTimer(sender);
+  }
+}
+SerialCommand cmd_timerCommands("timer", cmd_timerCommands_handler);
+
 void setup() {
   Serial.begin(9600);
+  serial_commands_.SetDefaultHandler(cmd_unrecognized_handler);
+  serial_commands_.AddCommand(&cmd_timerCommands);
+  timer.every(1000, timer_logTemperature);
 }
 
 void loop() {
-  float adcValue = GetAverageADC(probeThermistor, numSamples, (int)(samplingTime / numSamples));
-  float celcius = GetTemp(probeThermistor, adcValue) + tempCorrection;
+  timer.tick();
+  serial_commands_.ReadSerial();
 
-  String command = serialReader.GetCommand();
-  if (timer.Enabled) {
-    timer.Increment();
+}
 
-    if (timer.CounterAboveThreshold()) {
-      resetLED.TurnOn();
 
-      if (!AlreadyTriggered) {
-        LogMessage("Timer Triggered!");
-        PrintNewLine();
-        LogMessage("--> ");
-        AlreadyTriggered = true;
-      }
-    }
-    else {
-      resetLED.TurnOff();
-    }
+void startTimer(SerialCommands* sender)
+{
+  auto serial = sender->GetSerial();
 
-    LogMessage("Timer: ");
-    LogMessage(timer.GetProgress());
-    PrintDivider();
+  char* arg2 = sender->Next();
+
+  unsigned int t;
+
+  if (arg2 == NULL)
+  {
+    t = defaultTimer;
+  }
+  else
+  {
+    t = atoi(arg2);
   }
 
-  if (startTimerButton.ReadStatus() == HIGH && timer.Enabled == false) {
-    timer.Enabled = true;
-  }
-
-  if (resetTimerButton.ReadStatus() == HIGH || command == "reset") {
-    timer.Reset();
-    AlreadyTriggered = false;
-  }
-
-  if (command == "disable" && timer.Enabled) {
-    timer.Enabled = false;
-  }
-
-  if (command == "enable" && !timer.Enabled) {
-    timer.Enabled = true;
-  }
-
-  if (command == "toggle") {
-    timer.Enabled = !timer.Enabled;
-  }
-
-  //Logs values
-  LogCelcius(celcius);
-  PrintDivider();
-  LogVoltage(adcValue);
-  PrintNewLine();
-
-  //Determines whether or not they should be on or off
-  ToggleLEDs(redLED, greenLED, blueLED, celcius);
+  timerExecuted = timer.in(t * 1000, timer_logTimedTemperature);
 }
 
+void cancelTimer(SerialCommands* sender)
+{
+  auto serial = sender->GetSerial();
 
-
-
-
-
-/*
-   CALCULATIONS
-*/
-
-float GetTemp(Thermistor thermistor, float adcValue) {
-  float volts = ConvertADCtoVoltage(adcValue);
-  float resistance = ConvertVoltagetoResistance(volts);
-
-
-  /* Equation: 1/T = 1/T0 + 1/B * ln(R/R0)
-     Solved for T:
-     T = 1 / ((1/T0) + (1/B) * (ln(R/R0)))
-  */
-  float kelvin = 1.00 / ((1.00 / thermistor.T0) + (1.00 / thermistor.Beta) * (log(resistance / thermistor.R0)));
-  float celcius = kelvin - 273.15;
-  return celcius;
+  timer.cancel(timerExecuted);
 }
 
-float ConvertADCtoVoltage(float adc) {
-  float sourceVoltage = 5.00;
-  int maxADC = 1023;
-
-  float voltageAcross = (sourceVoltage / maxADC) * adc;
-
-  return voltageAcross;
+bool timer_logTimedTemperature()
+{
+  float temperature = thermometer.ReadTemperature();
+  logger.Log("MARK -> Temp: " + String(temperature));
+  return false; //no repeat
 }
 
-float ConvertVoltagetoResistance(float voltage) {
-  //Rearranged equation of Vout = Vsource * (Rresistor / Rthermistor + Rresistor)
-  // -> Rthermistor = Rresistor * (Vsource / Vmeasured - 1)
-
-  float maxVoltage = 5.00;
-  float measuredVoltage = voltage;
-
-  float resistorResistance = 10000.00;
-
-  float measuredResistance = resistorResistance * (maxVoltage / measuredVoltage - 1.00);
-  return measuredResistance;
-}
-
-
-
-
-
-
-/*
-   SAMPLING
-*/
-float GetAverageADC(Thermistor thermistor, int numSamples, int delayMS) {
-  int cumulativeADC = 0;
-
-  for (int i = 0; i < numSamples; i++) {
-    delay(delayMS);
-    cumulativeADC += thermistor.GetADC();
-  }
-
-  return cumulativeADC / numSamples;
-}
-
-
-
-
-
-
-
-/*
-   OTHER LED STUFF
-*/
-void ToggleLEDs(TemperatureLED red, TemperatureLED green, TemperatureLED blue, float temp) {
-  if (red.WithinRange(temp)) {
-    red.TurnOn();
-  } else red.TurnOff();
-
-  if (green.WithinRange(temp)) {
-    green.TurnOn();
-  } else green.TurnOff();
-
-  if (blue.WithinRange(temp)) {
-    blue.TurnOn();
-  } else blue.TurnOff();
-}
-
-
-
-
-
-/*
-   LOGGING
-*/
-
-void LogMessage(String message) {
-  Serial.print(message);
-}
-void LogMessage(int message) {
-  Serial.print(message);
-}
-void LogMessage(float message) {
-  Serial.print(message);
-}
-
-void LogCelcius(float temp) {
-  LogMessage("Celcius: ");
-  LogMessage(temp);
-}
-
-void LogVoltage(int adc) {
-  float voltage = ConvertADCtoVoltage(adc);
-
-  LogMessage("Voltage: ");
-  LogMessage(voltage);
-}
-
-void PrintDivider() {
-  Serial.print("   ||   ");
-}
-
-void PrintNewLine() {
-  Serial.println();
+bool timer_logTemperature()
+{
+  float temperature = thermometer.ReadTemperature();
+  blueLED.Update(temperature);
+  redLED.Update(temperature);
+  greenLED.Update(temperature);
+  logger.Log("Temp: " + String(temperature));
+  return true; //repeat
 }
