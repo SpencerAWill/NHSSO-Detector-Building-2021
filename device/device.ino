@@ -4,11 +4,11 @@
 
 
 #include "Arduino.h"
-#include "src/LED.h"
-#include "src/TemperatureLED.h"
-#include "src/Thermistor.h"
-#include "src/Logger.h"
-#include "src/Thermometer.h"
+#include "LED.h"
+#include "TemperatureLED.h"
+#include "Thermistor.h"
+#include "Logger.h"
+#include "Thermometer.h"
 
 /*
  * Serial Command Setup
@@ -101,7 +101,6 @@ void setup() {
 void loop() {
   timer.tick();
   serial_commands_.ReadSerial();
-
 }
 
 
