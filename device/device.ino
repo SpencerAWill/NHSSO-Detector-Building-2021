@@ -1,3 +1,4 @@
+#include <ArduinoLog.h>
 #include <SerialCommands.h>
 #include <arduino-timer.h>
 
@@ -7,7 +8,6 @@
 #include "LED.h"
 #include "TemperatureLED.h"
 #include "Thermistor.h"
-#include "Logger.h"
 #include "Thermometer.h"
 
 /*
@@ -28,7 +28,7 @@ SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_c
 
 
 //Timing
-Timer<4, micros> timer;
+Timer<4, millis> timer;
 uintptr_t constantUpdate;
 uintptr_t timerExecuted;
 
@@ -45,12 +45,11 @@ TemperatureLED greenLED(3, 20.1, 35);
 TemperatureLED redLED(4, 35.1, 100);
 
 // Thermometer
-Logger logger(Verbosity::Normal);
 Thermometer thermometer(&probeThermistor);
 
 //Other
 LED resetLED(6);
-const unsigned int defaultTimer = 90;
+const unsigned int defaultTimer = 10;
 
 /*
    Don't bother anything after this.
@@ -93,9 +92,12 @@ SerialCommand cmd_timerCommands("timer", cmd_timerCommands_handler);
 
 void setup() {
   Serial.begin(9600);
+  Log.begin(LOG_LEVEL_NOTICE, &Serial);
   serial_commands_.SetDefaultHandler(cmd_unrecognized_handler);
   serial_commands_.AddCommand(&cmd_timerCommands);
-  timer.every(1000, timer_logTemperature);
+  timer.every(1000, timer_logRegularTemperature);
+
+  Log.notice("=======< device.ino >=======" CR);
 }
 
 void loop() {
@@ -106,44 +108,31 @@ void loop() {
 
 void startTimer(SerialCommands* sender)
 {
-  auto serial = sender->GetSerial();
-
-  char* arg2 = sender->Next();
-
-  unsigned int t;
-
-  if (arg2 == NULL)
-  {
-    t = defaultTimer;
-  }
-  else
-  {
-    t = atoi(arg2);
-  }
-
-  timerExecuted = timer.in(t * 1000, timer_logTimedTemperature);
+  int t = defaultTimer;
+  int milliseconds = t * 1000;
+  sender->GetSerial()->println("Timer started for " + String(t) + "ms");
+  //timerExecuted = timer.in(t * 1000, timer_logTimedTemperature);
 }
 
 void cancelTimer(SerialCommands* sender)
 {
-  auto serial = sender->GetSerial();
-
-  timer.cancel(timerExecuted);
+  sender->GetSerial()->println("Timer canceled");
+  //timer.cancel(timerExecuted);
 }
 
-bool timer_logTimedTemperature()
+bool timer_finished(void *)
 {
   float temperature = thermometer.ReadTemperature();
-  logger.Log("MARK -> Temp: " + String(temperature));
+  Serial.println(temperature);
   return false; //no repeat
 }
 
-bool timer_logTemperature()
+bool timer_logRegularTemperature(void *)
 {
   float temperature = thermometer.ReadTemperature();
   blueLED.Update(temperature);
   redLED.Update(temperature);
   greenLED.Update(temperature);
-  logger.Log("Temp: " + String(temperature));
+  Serial.println(temperature);
   return true; //repeat
 }
