@@ -37,7 +37,7 @@ uintptr_t timerExecuted;
 */
 
 // Create thermistor (readPin, beta, T0, R0)
-Thermistor probeThermistor(A0, 3435, 298.15, 9999.00);
+Thermistor probeThermistor(3435, 298.15, 9999.00);
 
 // Create leds (pin, lowerRange, upperRange)
 TemperatureLED blueLED(2, 0, 20);
@@ -45,7 +45,7 @@ TemperatureLED greenLED(3, 20.1, 35);
 TemperatureLED redLED(4, 35.1, 100);
 
 // Thermometer
-Thermometer thermometer(&probeThermistor);
+Thermometer thermometer(&probeThermistor, A0);
 
 const unsigned int defaultTimer = 90;
 

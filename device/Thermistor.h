@@ -6,10 +6,7 @@ class Thermistor {
 		int Beta;
 		float T0;
 		float R0;
-		int ReadPin;
-		Thermistor(int pin, int beta, double t0, double r0);
-
-		int GetADC();
+		Thermistor(int beta, double t0, double r0);
 };
 
 #endif

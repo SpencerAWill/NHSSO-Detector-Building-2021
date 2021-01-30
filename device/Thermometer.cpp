@@ -1,55 +1,52 @@
 #include "Thermometer.h"
 #include "Thermistor.h"
 #include "Arduino.h"
+#include "VoltageDivider.h"
+#include "VoltageCalculator.h"
 
+int _pin;
 Thermistor *_thermistor;
+VoltageCalculator *_voltageCalculator;
+VoltageDivider *_voltageDivider;
+
 unsigned int SampleAmount;
 int TemperatureOffset;
 
-Thermometer::Thermometer(Thermistor *thermistor)
+Thermometer::Thermometer(Thermistor *thermistor, int voltageDividerPin)
 {
+  _pin = voltageDividerPin;
+  _voltageCalculator = &VoltageCalculator();
+  _voltageDivider = &VoltageDivider(5.0, 10000.0);
   SampleAmount = 10;
   _thermistor = thermistor;
   TemperatureOffset = 0;
 }
 
-float Thermometer::GetAverageADC()
+float Thermometer::GetAverageAnalog()
 {
-  int arraySize = SampleAmount;
-  float adcs[arraySize];
-  float cumulativeADC = 0;
-  for (int i = 0; i < arraySize; i++)
+  int cumulativeAnalog = 0;
+  for (int i = 0; i < SampleAmount; i++)
   {
-    cumulativeADC += (float)_thermistor->GetADC();
+    cumulativeAnalog += analogRead(_pin);
   }
 
-  return cumulativeADC / arraySize;
+  return (float)cumulativeAnalog / SampleAmount;
 }
 
-float Thermometer::ADCToVoltage(float adcValue)
+float Thermometer::AnalogToVoltage(int analogValue)
 {
-  float sourceVoltage = 5.00;
-  int maxADC = 1023;
-
-  float voltageAcross = (sourceVoltage / maxADC) * adcValue;
-
-  return voltageAcross;
+  return _voltageCalculator->CalculateVoltage(analogValue);
 }
 
 float Thermometer::VoltageToResistance(float voltage)
 {
-  //Rearranged equation of Vout = Vsource * (Rresistor / Rthermistor + Rresistor)
-  // -> Rthermistor = Rresistor * (Vsource / Vmeasured - 1)
-
-  float maxVoltage = 5.00;
-  float resistorResistance = 10000.00;
-
-  return resistorResistance * (maxVoltage / voltage - 1.00);
+  return _voltageDivider->CalculateVariableResistance(voltage);
 }
 
 float Thermometer::ResistanceToKelvin(float resistance)
 {
-  /* Equation: 1/T = 1/T0 + 1/B * ln(R/R0)
+  /* Steinhart-hart equation
+     Equation: 1/T = 1/T0 + 1/B * ln(R/R0)
      Solved for T:
      T = 1 / ((1/T0) + (1/B) * (ln(R/R0)))
   */
@@ -65,9 +62,9 @@ float Thermometer::KelvinToCelsius(float kelvin)
 
 float Thermometer::ReadTemperature()
 {
-  float avgADC = GetAverageADC();
+  float avgAnalog = GetAverageAnalog();
   
-  float voltage = ADCToVoltage(avgADC);
+  float voltage = AnalogToVoltage(avgAnalog);
   
   float resistance = VoltageToResistance(voltage);
   
