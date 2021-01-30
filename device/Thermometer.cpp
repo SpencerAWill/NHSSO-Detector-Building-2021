@@ -15,8 +15,8 @@ int TemperatureOffset;
 Thermometer::Thermometer(Thermistor *thermistor, int voltageDividerPin)
 {
   _pin = voltageDividerPin;
-  _voltageCalculator = &VoltageCalculator();
-  _voltageDivider = &VoltageDivider(5.0, 10000.0);
+  _voltageCalculator = new VoltageCalculator();
+  _voltageDivider = new VoltageDivider(5.0, 10000.0);
   SampleAmount = 10;
   _thermistor = thermistor;
   TemperatureOffset = 0;

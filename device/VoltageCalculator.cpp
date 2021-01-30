@@ -1,7 +1,7 @@
 #include "VoltageCalculator.h"
 #include "Arduino.h"
 
-unsigned long _operatingVoltage;
+float _operatingVoltage;
 int _resolution;
 
 VoltageCalculator::VoltageCalculator()
@@ -10,13 +10,13 @@ VoltageCalculator::VoltageCalculator()
   _resolution = 10;
 }
 
-VoltageCalculator::VoltageCalculator(unsigned long operatingVoltage)
+VoltageCalculator::VoltageCalculator(float operatingVoltage)
 {
   _operatingVoltage = operatingVoltage;
   _resolution = 10;
 }
 
-unsigned long VoltageCalculator::GetOperatingVoltage()
+float VoltageCalculator::GetOperatingVoltage()
 {
   return _operatingVoltage;
 }
