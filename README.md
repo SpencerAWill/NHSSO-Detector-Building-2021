@@ -22,14 +22,20 @@ Instructions for downloading the Detector Building Source Code
 
 ## Adjust thermistor values (only modify if the thermistor changes)
 Set the values of the 'Thermistor' object:
+
 `Thermistor probeThermistor(beta, T0, R0)`
+
 Example:
+
 `Thermistor probeThermistor(3435, 298.15, 9999.00);`
 
 ## Adjust temperature LEDs
 Set the ranges of all 3 temperature LEDs to the competition ranges:
+
 `TemperatureLED led(pin, lowerLimit, upperLimit)`
+
 Example:
+
 ```
 TemperatureLED blueLED(2, 0, 20); //LED on pin 2 that activates on temperatures 0-20
 TemperatureLED greenLED(3, 20.1, 35);
@@ -39,8 +45,11 @@ TemperatureLED redLED(4, 35.1, 100);
 ## Adjust thermometer pin
 Only change `voltageDividerPin` to the pin where the variable voltage is being read.
 This pin must be able to read analog signals.
+
 `Thermometer thermometer(&probeThermistor, voltageDividerPin)`
+
 Example:
+
 `Thermometer thermometer(&probeThermistor, A0);`
 
 ## Default Timer
