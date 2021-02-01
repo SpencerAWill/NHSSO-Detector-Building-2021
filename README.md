@@ -15,6 +15,14 @@ Instructions for downloading the Detector Building Source Code
 1. Clone source code using the command `git clone https://github.com/SpencerAWill/NHSSO-Detector-Building-2021.git` in your chosen CLI
 2. Open device/device.ino in Arduino IDE
 
+## External Libraries
+1. Download zip files
+  - [ArduinoLog](libs/ArduinoLog.zip)
+  - [SerialCommands](libs/SerialCommands.zip)
+  - [arduino-timer](libs/arduino-timer.zip)
+2. Extract all zips into you arduino libraries folder
+  - Usually found at `Documents\Arduino\libraries\`
+
 ---
 
 # Configuration
